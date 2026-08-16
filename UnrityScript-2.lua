@@ -428,7 +428,7 @@ local function spawnBox()
 
 		-- Auto greeting setelah beberapa detik
 		task.wait(GREETING_DELAY)
-		showReply("Hello! I'm Unrity. Your personal helper friend, ask me anything. I know everything~", false)
+		showReply("Hello! I'm Verity. Your personal helper friend, ask me anything. I know everything~", false)
 	end)
 end
 
