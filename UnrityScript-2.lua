@@ -33,80 +33,95 @@ local httpFn = (syn and syn.request) or http_request or request
 -- HELPER: GAMBAR MUKA VERITY (pure GUI, no image needed)
 -- ============================================================
 local function makeFace(parent)
+	-- === MATA ===
+	-- Mata kiri: lingkaran hitam + titik putih kecil (biar ada "shine")
 	local eL = Instance.new("Frame", parent)
 	eL.Name = "EyeL"
-	eL.Size = UDim2.new(0.13,0,0.13,0)
-	eL.Position = UDim2.new(0.24,0,0.28,0)
+	eL.Size = UDim2.new(0.15,0,0.15,0)
+	eL.Position = UDim2.new(0.20,0,0.24,0)
 	eL.BackgroundColor3 = Color3.new(0,0,0)
 	eL.BorderSizePixel = 0
 	Instance.new("UICorner", eL).CornerRadius = UDim.new(1,0)
+	local shineL = Instance.new("Frame", eL)
+	shineL.Size = UDim2.new(0.3,0,0.3,0)
+	shineL.Position = UDim2.new(0.6,0,0.1,0)
+	shineL.BackgroundColor3 = Color3.new(1,1,1)
+	shineL.BorderSizePixel = 0
+	shineL.ZIndex = 2
+	Instance.new("UICorner", shineL).CornerRadius = UDim.new(1,0)
 
+	-- Mata kanan
 	local eR = eL:Clone()
 	eR.Name = "EyeR"
-	eR.Position = UDim2.new(0.63,0,0.28,0)
+	eR.Position = UDim2.new(0.65,0,0.24,0)
 	eR.Parent = parent
 
-	-- Senyum (arc pake clip)
-	local smileClip = Instance.new("Frame", parent)
-	smileClip.Name = "SmileClip"
-	smileClip.Size = UDim2.new(0.58,0,0.22,0)
-	smileClip.Position = UDim2.new(0.21,0,0.58,0)
-	smileClip.BackgroundTransparency = 1
-	smileClip.ClipsDescendants = true
-	smileClip.BorderSizePixel = 0
+	-- === MULUT (mask technique, lebih bersih dari clip) ===
+	-- Oval hitam besar = dasar mulut
+	local mouth = Instance.new("Frame", parent)
+	mouth.Name = "Mouth"
+	mouth.Size = UDim2.new(0.70,0,0.34,0)
+	mouth.Position = UDim2.new(0.15,0,0.55,0)
+	mouth.BackgroundColor3 = Color3.new(0,0,0)
+	mouth.BorderSizePixel = 0
+	Instance.new("UICorner", mouth).CornerRadius = UDim.new(0.5,0)
 
-	local smileArc = Instance.new("Frame", smileClip)
-	smileArc.Size = UDim2.new(1,0,2.2,0)
-	smileArc.Position = UDim2.new(0,0,-1,0)
-	smileArc.BackgroundColor3 = Color3.new(0,0,0)
-	smileArc.BorderSizePixel = 0
-	Instance.new("UICorner", smileArc).CornerRadius = UDim.new(0.5,0)
+	-- Oval kuning (mask atas oval hitam) → tampil hanya bagian bawah = senyum U
+	local mask = Instance.new("Frame", mouth)
+	mask.Name = "Mask"
+	mask.Size = UDim2.new(0.82,0,0.75,0)
+	mask.Position = UDim2.new(0.09,0,-0.38,0)
+	mask.BackgroundColor3 = VERITY_YELLOW
+	mask.BorderSizePixel = 0
+	mask.ZIndex = 2
+	Instance.new("UICorner", mask).CornerRadius = UDim.new(0.5,0)
 
-	local smileInner = Instance.new("Frame", smileClip)
-	smileInner.Name = "Inner"
-	smileInner.Size = UDim2.new(0.76,0,1.8,0)
-	smileInner.Position = UDim2.new(0.12,0,-0.85,0)
-	smileInner.BackgroundColor3 = VERITY_YELLOW
-	smileInner.BorderSizePixel = 0
-	smileInner.ZIndex = 2
-	Instance.new("UICorner", smileInner).CornerRadius = UDim.new(0.5,0)
-
-	-- Gigi (creepy mode)
-	local teeth = Instance.new("Frame", smileClip)
+	-- Baris gigi (creepy mode, tersembunyi default)
+	local teeth = Instance.new("Frame", mouth)
 	teeth.Name = "Teeth"
-	teeth.Size = UDim2.new(1,0,0.55,0)
-	teeth.Position = UDim2.new(0,0,0.45,0)
-	teeth.BackgroundColor3 = Color3.fromRGB(255,255,255)
+	teeth.Size = UDim2.new(1,0,0.48,0)
+	teeth.Position = UDim2.new(0,0,0.02,0)
+	teeth.BackgroundColor3 = Color3.new(1,1,1)
 	teeth.BorderSizePixel = 0
 	teeth.ZIndex = 3
 	teeth.Visible = false
-	for i = 0, 4 do
+	for i = 0, 5 do
 		local gap = Instance.new("Frame", teeth)
-		gap.Size = UDim2.new(0.04,0,1,0)
-		gap.Position = UDim2.new(0.17*i+0.01,0,0,0)
+		gap.Size = UDim2.new(0.035,0,1,0)
+		gap.Position = UDim2.new(0.15*i+0.02,0,0,0)
 		gap.BackgroundColor3 = Color3.new(0,0,0)
 		gap.BorderSizePixel = 0
 		gap.ZIndex = 4
 	end
 
-	return {eL=eL, eR=eR, smileClip=smileClip, smileInner=smileInner, teeth=teeth}
+	return {eL=eL, eR=eR, mouth=mouth, mask=mask, teeth=teeth}
 end
 
 local function setExpression(refs, isCreepy)
 	if not refs then return end
 	if isCreepy then
-		refs.eL.Size = UDim2.new(0.17,0,0.17,0)
-		refs.eR.Size = UDim2.new(0.17,0,0.17,0)
-		refs.smileClip.Size = UDim2.new(0.82,0,0.28,0)
-		refs.smileClip.Position = UDim2.new(0.09,0,0.55,0)
-		refs.smileInner.Visible = false
+		-- Mata lebih lebar, shine hilang
+		refs.eL.Size = UDim2.new(0.18,0,0.18,0)
+		refs.eR.Size = UDim2.new(0.18,0,0.18,0)
+		local sL = refs.eL:FindFirstChild("Frame")
+		local sR = refs.eR:FindFirstChild("Frame")
+		if sL then sL.Visible = false end
+		if sR then sR.Visible = false end
+		-- Mulut lebar + gigi muncul, mask hilang
+		refs.mouth.Size = UDim2.new(0.88,0,0.38,0)
+		refs.mouth.Position = UDim2.new(0.06,0,0.52,0)
+		refs.mask.Visible = false
 		refs.teeth.Visible = true
 	else
-		refs.eL.Size = UDim2.new(0.13,0,0.13,0)
-		refs.eR.Size = UDim2.new(0.13,0,0.13,0)
-		refs.smileClip.Size = UDim2.new(0.58,0,0.22,0)
-		refs.smileClip.Position = UDim2.new(0.21,0,0.58,0)
-		refs.smileInner.Visible = true
+		refs.eL.Size = UDim2.new(0.15,0,0.15,0)
+		refs.eR.Size = UDim2.new(0.15,0,0.15,0)
+		local sL = refs.eL:FindFirstChild("Frame")
+		local sR = refs.eR:FindFirstChild("Frame")
+		if sL then sL.Visible = true end
+		if sR then sR.Visible = true end
+		refs.mouth.Size = UDim2.new(0.70,0,0.34,0)
+		refs.mouth.Position = UDim2.new(0.15,0,0.55,0)
+		refs.mask.Visible = true
 		refs.teeth.Visible = false
 	end
 end
