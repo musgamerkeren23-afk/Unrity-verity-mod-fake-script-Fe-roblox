@@ -334,10 +334,15 @@ local function triggerGiantForm()
 	isGiant = true
 	setExpression(portraitRefs, "giant")
 	setExpression(ballRefs, "giant")
-	TweenService:Create(ball,
-		TweenInfo.new(1.5, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out),
-		{Size = BALL_SIZE_GIANT}
-	):Play()
+	-- Scale BillboardGui (visual 2D) bukan Part
+	local bodyBB2 = ball and ball:FindFirstChild("BodyBB")
+	if bodyBB2 then
+		TweenService:Create(bodyBB2,
+			TweenInfo.new(1.5, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out),
+			{Size = UDim2.new(11,0,11,0)}
+		):Play()
+	end
+	ball.Size = BALL_SIZE_GIANT  -- perbesar hitbox juga
 end
 
 -- Decrease happiness
@@ -547,33 +552,39 @@ local function spawnBox()
 		local npcModel = Instance.new("Model")
 		npcModel.Name = "Unrity"
 
+		-- Part INVISIBLE sebagai anchor + hitbox klik (bukan bola 3D!)
 		ball = Instance.new("Part", npcModel)
 		ball.Name = "Ball"
 		ball.Shape = Enum.PartType.Ball
 		ball.Size = BALL_SIZE_NORMAL
-		ball.Color = VERITY_YELLOW
-		ball.Material = Enum.Material.SmoothPlastic
-		ball.Anchored = true; ball.CanCollide = false
+		ball.Transparency = 1          -- INVISIBLE — bola 3D gak keliatan
+		ball.CanCollide = false
+		ball.Anchored = true
 
-		-- BillboardGui WAJAH 2D (always ngadepin kamera, gak muter sama bola)
-		local faceBB = Instance.new("BillboardGui", ball)
-		faceBB.Size = UDim2.new(3.5,0,3.5,0)  -- 3.5 stud = sama kayak diameter bola
-		faceBB.StudsOffset = Vector3.new(0,0,0)
-		faceBB.AlwaysOnTop = false
-		faceBB.LightInfluence = 0
-		-- Container kuning biar muka punya background
-		local faceContainer = Instance.new("Frame", faceBB)
-		faceContainer.Size = UDim2.new(1,0,1,0)
-		faceContainer.BackgroundTransparency = 1  -- transparan (bola sendiri udah kuning)
-		faceContainer.BorderSizePixel = 0
-		ballRefs = makeFace(faceContainer)
+		-- BillboardGui BESAR = "tubuh" Unrity yang beneran (flat 2D sprite)
+		local bodyBB = Instance.new("BillboardGui", ball)
+		bodyBB.Name = "BodyBB"
+		bodyBB.Size = UDim2.new(4,0,4,0)  -- 4x4 stud = ukuran visual Unrity
+		bodyBB.StudsOffset = Vector3.new(0,0,0)
+		bodyBB.AlwaysOnTop = false
+		bodyBB.LightInfluence = 0
+
+		-- Lingkaran kuning (background muka 2D)
+		local faceCircle = Instance.new("Frame", bodyBB)
+		faceCircle.Size = UDim2.new(1,0,1,0)
+		faceCircle.BackgroundColor3 = VERITY_YELLOW
+		faceCircle.BorderSizePixel = 0
+		Instance.new("UICorner", faceCircle).CornerRadius = UDim.new(0.5,0)
+
+		-- Elemen muka di dalam lingkaran
+		ballRefs = makeFace(faceCircle)
 
 		-- Nametag
 		local bb = Instance.new("BillboardGui", ball)
 		bb.Size=UDim2.new(0,100,0,28); bb.StudsOffset=Vector3.new(0,2.5,0)
 		local nt=Instance.new("TextLabel",bb)
 		nt.Size=UDim2.new(1,0,1,0); nt.BackgroundTransparency=1
-		nt.Text="Verity"; nt.TextColor3=Color3.new(1,1,1)
+		nt.Text="verity"; nt.TextColor3=Color3.new(1,1,1)
 		nt.TextStrokeTransparency=0; nt.Font=Enum.Font.GothamBold; nt.TextSize=14
 
 		-- Happiness bar floating (di atas nametag)
