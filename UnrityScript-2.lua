@@ -34,94 +34,79 @@ local httpFn = (syn and syn.request) or http_request or request
 -- ============================================================
 local function makeFace(parent)
 	-- === MATA ===
-	-- Mata kiri: lingkaran hitam + titik putih kecil (biar ada "shine")
 	local eL = Instance.new("Frame", parent)
 	eL.Name = "EyeL"
-	eL.Size = UDim2.new(0.15,0,0.15,0)
-	eL.Position = UDim2.new(0.20,0,0.24,0)
+	eL.Size = UDim2.new(0.14,0,0.14,0)
+	eL.Position = UDim2.new(0.22,0,0.28,0)
 	eL.BackgroundColor3 = Color3.new(0,0,0)
 	eL.BorderSizePixel = 0
 	Instance.new("UICorner", eL).CornerRadius = UDim.new(1,0)
 	local shineL = Instance.new("Frame", eL)
-	shineL.Size = UDim2.new(0.3,0,0.3,0)
-	shineL.Position = UDim2.new(0.6,0,0.1,0)
+	shineL.Size = UDim2.new(0.32,0,0.32,0)
+	shineL.Position = UDim2.new(0.58,0,0.08,0)
 	shineL.BackgroundColor3 = Color3.new(1,1,1)
 	shineL.BorderSizePixel = 0
 	shineL.ZIndex = 2
 	Instance.new("UICorner", shineL).CornerRadius = UDim.new(1,0)
 
-	-- Mata kanan
 	local eR = eL:Clone()
 	eR.Name = "EyeR"
-	eR.Position = UDim2.new(0.65,0,0.24,0)
+	eR.Position = UDim2.new(0.64,0,0.28,0)
 	eR.Parent = parent
 
-	-- === MULUT (mask technique, lebih bersih dari clip) ===
-	-- Oval hitam besar = dasar mulut
-	local mouth = Instance.new("Frame", parent)
-	mouth.Name = "Mouth"
-	mouth.Size = UDim2.new(0.70,0,0.34,0)
-	mouth.Position = UDim2.new(0.15,0,0.55,0)
-	mouth.BackgroundColor3 = Color3.new(0,0,0)
-	mouth.BorderSizePixel = 0
-	Instance.new("UICorner", mouth).CornerRadius = UDim.new(0.5,0)
+	-- === SENYUM: bar tipis di dalam bola (gak keluar batas) ===
+	-- Simple: lingkaran hitam besar (atas muka) dihalang oleh frame kuning
+	-- sehingga hanya bagian bawah kelihatan sebagai senyum
+	local smileWrap = Instance.new("Frame", parent)
+	smileWrap.Name = "SmileWrap"
+	smileWrap.Size = UDim2.new(0.60,0,0.12,0)
+	smileWrap.Position = UDim2.new(0.20,0,0.58,0)
+	smileWrap.BackgroundColor3 = Color3.new(0,0,0)
+	smileWrap.BorderSizePixel = 0
+	Instance.new("UICorner", smileWrap).CornerRadius = UDim.new(0.5,0)
 
-	-- Oval kuning (mask atas oval hitam) → tampil hanya bagian bawah = senyum U
-	local mask = Instance.new("Frame", mouth)
-	mask.Name = "Mask"
-	mask.Size = UDim2.new(0.82,0,0.75,0)
-	mask.Position = UDim2.new(0.09,0,-0.38,0)
-	mask.BackgroundColor3 = VERITY_YELLOW
-	mask.BorderSizePixel = 0
-	mask.ZIndex = 2
-	Instance.new("UICorner", mask).CornerRadius = UDim.new(0.5,0)
-
-	-- Baris gigi (creepy mode, tersembunyi default)
-	local teeth = Instance.new("Frame", mouth)
+	-- Gigi (creepy)
+	local teeth = Instance.new("Frame", smileWrap)
 	teeth.Name = "Teeth"
-	teeth.Size = UDim2.new(1,0,0.48,0)
-	teeth.Position = UDim2.new(0,0,0.02,0)
+	teeth.Size = UDim2.new(1,0,1,0)
+	teeth.Position = UDim2.new(0,0,0,0)
 	teeth.BackgroundColor3 = Color3.new(1,1,1)
 	teeth.BorderSizePixel = 0
-	teeth.ZIndex = 3
+	teeth.ZIndex = 2
 	teeth.Visible = false
 	for i = 0, 5 do
 		local gap = Instance.new("Frame", teeth)
-		gap.Size = UDim2.new(0.035,0,1,0)
-		gap.Position = UDim2.new(0.15*i+0.02,0,0,0)
+		gap.Size = UDim2.new(0.034,0,1,0)
+		gap.Position = UDim2.new(0.14*i+0.02,0,0,0)
 		gap.BackgroundColor3 = Color3.new(0,0,0)
 		gap.BorderSizePixel = 0
-		gap.ZIndex = 4
+		gap.ZIndex = 3
 	end
 
-	return {eL=eL, eR=eR, mouth=mouth, mask=mask, teeth=teeth}
+	return {eL=eL, eR=eR, mouth=smileWrap, teeth=teeth}
 end
 
 local function setExpression(refs, isCreepy)
 	if not refs then return end
 	if isCreepy then
-		-- Mata lebih lebar, shine hilang
 		refs.eL.Size = UDim2.new(0.18,0,0.18,0)
 		refs.eR.Size = UDim2.new(0.18,0,0.18,0)
-		local sL = refs.eL:FindFirstChild("Frame")
-		local sR = refs.eR:FindFirstChild("Frame")
+		local sL = refs.eL:FindFirstChildOfClass("Frame")
+		local sR = refs.eR:FindFirstChildOfClass("Frame")
 		if sL then sL.Visible = false end
 		if sR then sR.Visible = false end
-		-- Mulut lebar + gigi muncul, mask hilang
-		refs.mouth.Size = UDim2.new(0.88,0,0.38,0)
-		refs.mouth.Position = UDim2.new(0.06,0,0.52,0)
-		refs.mask.Visible = false
+		refs.mouth.Size = UDim2.new(0.80,0,0.15,0)
+		refs.mouth.Position = UDim2.new(0.10,0,0.55,0)
 		refs.teeth.Visible = true
 	else
-		refs.eL.Size = UDim2.new(0.15,0,0.15,0)
-		refs.eR.Size = UDim2.new(0.15,0,0.15,0)
-		local sL = refs.eL:FindFirstChild("Frame")
-		local sR = refs.eR:FindFirstChild("Frame")
+		refs.eL.Size = UDim2.new(0.14,0,0.14,0)
+		refs.eR.Size = UDim2.new(0.14,0,0.14,0)
+		local sL = refs.eL:FindFirstChildOfClass("Frame")
+		local sR = refs.eR:FindFirstChildOfClass("Frame")
 		if sL then sL.Visible = true end
 		if sR then sR.Visible = true end
-		refs.mouth.Size = UDim2.new(0.70,0,0.34,0)
-		refs.mouth.Position = UDim2.new(0.15,0,0.55,0)
-		refs.mask.Visible = true
+		refs.mouth.Size = UDim2.new(0.60,0,0.12,0)
+		refs.mouth.Position = UDim2.new(0.20,0,0.58,0)
 		refs.teeth.Visible = false
 	end
 end
@@ -285,7 +270,7 @@ local function startCarry()
 	if carryConn then carryConn:Disconnect() end
 	carryConn = RunService.RenderStepped:Connect(function()
 		if not isCarrying or not ball or not ball.Parent then return end
-		local target = rootPart.CFrame * CFrame.new(0, 1.5, -3.5)
+		local target = rootPart.CFrame * CFrame.new(1.5, 1.0, -6.0)
 		ball.CFrame = ball.CFrame:Lerp(target, 0.25)
 	end)
 end
@@ -404,7 +389,7 @@ local function spawnBox()
 		bb.StudsOffset = Vector3.new(0,2.2,0)
 		local nt = Instance.new("TextLabel", bb)
 		nt.Size=UDim2.new(1,0,1,0); nt.BackgroundTransparency=1
-		nt.Text="Unrity"; nt.TextColor3=Color3.new(1,1,1)
+		nt.Text="Verity"; nt.TextColor3=Color3.new(1,1,1)
 		nt.TextStrokeTransparency=0; nt.Font=Enum.Font.GothamBold; nt.TextSize=14
 
 		-- Hint carry
@@ -443,7 +428,7 @@ local function spawnBox()
 
 		-- Auto greeting setelah beberapa detik
 		task.wait(GREETING_DELAY)
-		showReply("Hello! I'm Verity. Your personal helper friend, ask me anything. I know everything~", false)
+		showReply("Hello! I'm Unrity. Your personal helper friend, ask me anything. I know everything~", false)
 	end)
 end
 
@@ -451,4 +436,4 @@ end
 local ok, err = pcall(spawnBox)
 if not ok then warn("[Unrity] Spawn error: "..tostring(err)) end
 
-print("[Unrity] v5 ready! Klik box buat buka. Ketik 'unrity <tanya>' di chat.")
+print("[Verity] v7 ready! Klik box buat buka. Ketik 'unrity <tanya>' di chat.")
