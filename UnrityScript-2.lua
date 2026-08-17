@@ -8,15 +8,18 @@
 -- ===== CONFIG =====
 local PROXY_URL      = "https://raspy-dream-5ef3.musgamerkeren23.workers.dev/"
 local VERITY_YELLOW  = Color3.fromRGB(255, 218, 40)
-local TRIGGER_WORD   = "verity"
+local TRIGGER_WORD   = "unrity"
 local CREEPY_WORDS   = {"thatmob", "twixxel"}
 local HATE_WORDS     = {"hate","ugly","stupid","bad","shut up","idiot","dumb","go away","useless","trash"}
 local LEAVE_WORDS    = {"bye","goodbye","leaving","i'm leaving","gotta go","see ya","i leave","i'm going"}
 local REPLY_DURATION = 12
 local GREETING_DELAY = 8
 
-local BALL_SIZE_NORMAL = Vector3.new(3.5, 3.5, 3.5)
-local BALL_SIZE_GIANT  = Vector3.new(11, 11, 11)
+local BALL_SIZE_NORMAL  = Vector3.new(3.5, 3.5, 3.5)
+local BALL_SIZE_GIANT   = Vector3.new(11, 11, 11)
+local PREMED_AUDIO_ID   = "rbxassetid://92623551842454"
+local PREMED_KEYWORD    = "premeditated"
+local PREMED_DURATION   = 35  -- detik chase berlangsung
 
 -- ===== SERVICES =====
 local Players      = game:GetService("Players")
@@ -43,6 +46,9 @@ local isCarrying     = false
 local carryConn      = nil
 local portraitRefs   = nil
 local ballRefs       = nil
+local isPremeditated = false
+local premedSound    = nil
+local chaserModel    = nil
 
 -- ===== HAPPINESS STATE =====
 -- 70-100 = happy, 40-69 = neutral, 1-39 = angry, 0 = GIANT
@@ -429,6 +435,11 @@ end
 -- Chat handler
 local isProcessing = false
 local function handleChat(msg)
+	-- Cek trigger premeditated (rahasia, tanpa prefix "unrity")
+	if msg:lower():find(PREMED_KEYWORD) then
+		triggerPremeditated()
+		return
+	end
 	checkHateMsg(msg)  -- cek kata jahat di setiap chat
 	if isProcessing then return end
 	local low = msg:lower()
@@ -488,6 +499,134 @@ local function tw(part, dur, style, dir, cf, extra)
 	local props = extra or {}; props.CFrame = cf
 	return TweenService:Create(part,
 		TweenInfo.new(dur, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props)
+end
+
+
+-- ============================================================
+-- PREMEDITATED — Tall R6 Unrity chase mode
+-- ============================================================
+local function stopPremeditated()
+	if not isPremeditated then return end
+	isPremeditated = false
+	if premedSound then premedSound:Destroy(); premedSound = nil end
+	if chaserModel then chaserModel:Destroy(); chaserModel = nil end
+	-- Restore Unrity billboard
+	local unrity = workspace:FindFirstChild("Unrity")
+	if unrity then
+		local bb = unrity:FindFirstChildOfClass("BillboardGui")
+		if bb then bb.Enabled = true end
+	end
+	showReply("...hehe. Just kidding~", nil)
+end
+
+local function triggerPremeditated()
+	if isPremeditated then stopPremeditated() return end
+	isPremeditated = true
+
+	-- Sembunyiin Unrity billboard sementara
+	local unrity = workspace:FindFirstChild("Unrity")
+	if unrity then
+		local bb = unrity:FindFirstChildOfClass("BillboardGui")
+		if bb then bb.Enabled = false end
+	end
+	replyBubble.Visible = false
+
+	-- Mainkan lagu
+	premedSound = Instance.new("Sound", workspace)
+	premedSound.SoundId = PREMED_AUDIO_ID
+	premedSound.Volume = 0.85
+	premedSound.Looped = true
+	premedSound:Play()
+
+	-- Spawn Tall R6 Unrity (2x ukuran normal)
+	chaserModel = Instance.new("Model")
+	chaserModel.Name = "UnrityChaser"
+	chaserModel.Parent = workspace
+
+	local S = 2.2  -- scale factor (gede/tinggi)
+	local BLACK  = Color3.fromRGB(15, 15, 15)
+
+	local function mkPart(nm, sz, col)
+		local p = Instance.new("Part")
+		p.Name=nm; p.Size=sz*S; p.Color=col
+		p.Material=Enum.Material.SmoothPlastic
+		p.Anchored=true; p.CanCollide=false
+		p.CastShadow=true; p.Parent=chaserModel
+		return p
+	end
+
+	-- Bagian tubuh (offset relatif ke HRP, sebelum di-scale)
+	local hrp    = mkPart("HRP",      Vector3.new(2,2,1)/S,    BLACK)
+	hrp.Transparency = 1
+	local torso  = mkPart("Torso",    Vector3.new(2,2,1),      BLACK)
+	local head   = mkPart("Head",     Vector3.new(2,2,2),      Color3.fromRGB(255,218,40))
+	local lArm   = mkPart("LAArm",    Vector3.new(1,2,1),      BLACK)
+	local rArm   = mkPart("RAArm",    Vector3.new(1,2,1),      BLACK)
+	local lLeg   = mkPart("LLeg",     Vector3.new(1,2,1),      BLACK)
+	local rLeg   = mkPart("RLeg",     Vector3.new(1,2,1),      BLACK)
+
+	-- Muka Unrity di kepala (BillboardGui 2D)
+	local faceBB2 = Instance.new("BillboardGui", head)
+	faceBB2.Size = UDim2.new(2*S,0,2*S,0)
+	faceBB2.LightInfluence = 0
+	local faceCircle2 = Instance.new("Frame", faceBB2)
+	faceCircle2.Size = UDim2.new(1,0,1,0)
+	faceCircle2.BackgroundColor3 = VERITY_YELLOW
+	faceCircle2.BorderSizePixel = 0
+	Instance.new("UICorner",faceCircle2).CornerRadius = UDim.new(0.5,0)
+	local chaserFaceRefs = makeFace(faceCircle2)
+	setExpression(chaserFaceRefs, "angry")
+
+	-- Offset tiap part relatif ke HRP (dalam stud, sebelum scale)
+	local offsets = {
+		{torso, CFrame.new(0,  0,   0)},
+		{head,  CFrame.new(0,  2,   0)},
+		{lArm,  CFrame.new(-1.5, 0, 0)},
+		{rArm,  CFrame.new( 1.5, 0, 0)},
+		{lLeg,  CFrame.new(-0.5,-2,  0)},
+		{rLeg,  CFrame.new( 0.5,-2,  0)},
+	}
+
+	chaserModel.PrimaryPart = hrp
+
+	-- Posisi awal: di tempat Unrity berdiri
+	local startPos = ball and ball.Position or (rootPart.Position + Vector3.new(5,0,5))
+	startPos = Vector3.new(startPos.X, rootPart.Position.Y, startPos.Z)
+	hrp.CFrame = CFrame.new(startPos)
+	for _, d in ipairs(offsets) do
+		d[1].CFrame = hrp.CFrame * (d[2] * S)
+	end
+
+	-- Chase loop
+	local chaseConn
+	chaseConn = RunService.Heartbeat:Connect(function()
+		if not isPremeditated or not chaserModel or not chaserModel.Parent then
+			chaseConn:Disconnect(); return
+		end
+		local targetPos = rootPart.Position
+		local dir = (targetPos - hrp.Position)
+		local distXZ = Vector3.new(dir.X,0,dir.Z).Magnitude
+
+		local moveSpeed = 0.18  -- lerp speed (0-1)
+		local yRot = math.atan2(dir.X, dir.Z)
+
+		-- Gerak mendekat
+		local newPos = hrp.Position + Vector3.new(dir.X,0,dir.Z).Unit * math.min(distXZ, 0.35)
+		newPos = Vector3.new(newPos.X, rootPart.Position.Y, newPos.Z)
+		local newCF = CFrame.new(newPos) * CFrame.Angles(0, yRot, 0)
+		hrp.CFrame = hrp.CFrame:Lerp(newCF, moveSpeed)
+
+		-- Update semua part
+		for _, d in ipairs(offsets) do
+			d[1].CFrame = hrp.CFrame * (d[2] * S)
+		end
+	end)
+
+	-- Auto stop setelah durasi
+	task.delay(PREMED_DURATION, function()
+		if chaseConn then chaseConn:Disconnect() end
+		stopPremeditated()
+	end)
 end
 
 local function spawnBox()
@@ -584,7 +723,7 @@ local function spawnBox()
 		bb.Size=UDim2.new(0,100,0,28); bb.StudsOffset=Vector3.new(0,2.5,0)
 		local nt=Instance.new("TextLabel",bb)
 		nt.Size=UDim2.new(1,0,1,0); nt.BackgroundTransparency=1
-		nt.Text="verity"; nt.TextColor3=Color3.new(1,1,1)
+		nt.Text="Unrity"; nt.TextColor3=Color3.new(1,1,1)
 		nt.TextStrokeTransparency=0; nt.Font=Enum.Font.GothamBold; nt.TextSize=14
 
 		-- Happiness bar floating (di atas nametag)
@@ -642,7 +781,7 @@ local function spawnBox()
 
 		-- Greeting setelah beberapa detik
 		task.wait(GREETING_DELAY)
-		showReply("Hello! I'm Verity. Your personal helper friend, ask me anything. I know everything~", nil)
+		showReply("Hello! I'm Unrity. Your personal helper friend, ask me anything. I know everything~", nil)
 	end)
 end
 
