@@ -414,30 +414,46 @@ Always reply in English. Match your current mood to the happiness level.]]
 		elseif statusCode == 503 then
 			return nil, "unavailable"
 		end
-		local decoded = HttpService:JSONDecode(res.Body or res.body)
+		local rawBody = res.Body or res.body or ""
+		-- Debug: tampilin raw response biar bisa didiagnosa
+		warn("[Unrity] Raw body: " .. rawBody:sub(1,250))
+
+		local parseOk, decoded = pcall(HttpService.JSONDecode, HttpService, rawBody)
+		if not parseOk then
+			warn("[Unrity] JSON parse fail: " .. tostring(decoded))
+			return nil, "parse_error"
+		end
+
 		local reply = decoded.reply
-			or (decoded.choices and decoded.choices[1].message.content)
+			or (decoded.choices
+				and decoded.choices[1]
+				and decoded.choices[1].message
+				and decoded.choices[1].message.content)
+
+		if not reply or reply == "" then
+			warn("[Unrity] No reply in decoded: " .. rawBody:sub(1,250))
+			return nil, "no_reply"
+		end
+
 		return reply, nil
 	end
 
 	-- Attempt pertama
 	local ok, result, errType = pcall(doRequest)
-	if ok and result then return result end
+	if ok and result and not errType then return result end
 
-	-- Kalau rate limit, tunggu 3 detik terus retry sekali
 	if errType == "ratelimit" then
 		task.wait(3)
 		ok, result, errType = pcall(doRequest)
-		if ok and result then return result end
-		return "I need a moment to think... try asking again in a bit! 💭"
+		if ok and result and not errType then return result end
+		return "I need a moment to think... 💭"
 	end
 
-	-- Server down
-	if errType == "unavailable" then
-		return "My brain is a bit foggy right now... try again soon! ☁️"
+	if errType == "unavailable" or errType == "parse_error" or errType == "no_reply" then
+		return "My brain glitched... try again! 🔄"
 	end
 
-	warn("[Unrity] API error: "..tostring(result))
+	warn("[Unrity] Unhandled error: " .. tostring(result))
 	return "Hmm... something went wrong!"
 end
 
@@ -605,14 +621,14 @@ triggerPremeditated = function()
 	local chaserFaceRefs = makeFace(faceCircle2)
 	setExpression(chaserFaceRefs, "angry")
 
-	-- Offset tiap part relatif ke HRP (dalam stud, sebelum scale)
+	-- Offset tiap part relatif ke HRP (Vector3, bisa langsung dikali S)
 	local offsets = {
-		{torso, CFrame.new(0,  0,   0)},
-		{head,  CFrame.new(0,  2,   0)},
-		{lArm,  CFrame.new(-1.5, 0, 0)},
-		{rArm,  CFrame.new( 1.5, 0, 0)},
-		{lLeg,  CFrame.new(-0.5,-2,  0)},
-		{rLeg,  CFrame.new( 0.5,-2,  0)},
+		{torso, Vector3.new(0,    0, 0)},
+		{head,  Vector3.new(0,    2, 0)},
+		{lArm,  Vector3.new(-1.5, 0, 0)},
+		{rArm,  Vector3.new( 1.5, 0, 0)},
+		{lLeg,  Vector3.new(-0.5,-2, 0)},
+		{rLeg,  Vector3.new( 0.5,-2, 0)},
 	}
 
 	chaserModel.PrimaryPart = hrp
@@ -622,7 +638,7 @@ triggerPremeditated = function()
 	startPos = Vector3.new(startPos.X, rootPart.Position.Y, startPos.Z)
 	hrp.CFrame = CFrame.new(startPos)
 	for _, d in ipairs(offsets) do
-		d[1].CFrame = hrp.CFrame * (d[2] * S)
+		d[1].CFrame = hrp.CFrame * CFrame.new(d[2] * S)
 	end
 
 	-- Chase loop
@@ -644,9 +660,9 @@ triggerPremeditated = function()
 		local newCF = CFrame.new(newPos) * CFrame.Angles(0, yRot, 0)
 		hrp.CFrame = hrp.CFrame:Lerp(newCF, moveSpeed)
 
-		-- Update semua part
+		-- Update semua part (scale posisi offset, bukan CFrame-nya langsung)
 		for _, d in ipairs(offsets) do
-			d[1].CFrame = hrp.CFrame * (d[2] * S)
+			d[1].CFrame = hrp.CFrame * CFrame.new(d[2] * S)
 		end
 	end)
 
