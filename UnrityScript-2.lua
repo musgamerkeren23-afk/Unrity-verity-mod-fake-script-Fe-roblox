@@ -49,6 +49,7 @@ local ballRefs       = nil
 local isPremeditated = false
 local premedSound    = nil
 local chaserModel    = nil
+local triggerPremeditated  -- forward declaration (diisi nanti)
 
 -- ===== HAPPINESS STATE =====
 -- 70-100 = happy, 40-69 = neutral, 1-39 = angry, 0 = GIANT
@@ -397,7 +398,7 @@ GIANT/RAGE: FURIOUS, all caps, scary, threatening. Very short.
 CREEPY (thatmob/twixxel trigger): Calm obsessive. "...why do you mention them? You should only care about me..."
 Always reply in English. Match your current mood to the happiness level.]]
 
-	local ok, result = pcall(function()
+	local function doRequest()
 		local res = httpFn({
 			Url = PROXY_URL, Method = "POST",
 			Headers = {["Content-Type"]="application/json"},
@@ -406,13 +407,37 @@ Always reply in English. Match your current mood to the happiness level.]]
 				system = sysPrompt,
 			}),
 		})
+		local statusCode = res.StatusCode or res.statusCode or 200
+		-- Handle rate limit (429) dan server error (503)
+		if statusCode == 429 then
+			return nil, "ratelimit"
+		elseif statusCode == 503 then
+			return nil, "unavailable"
+		end
 		local decoded = HttpService:JSONDecode(res.Body or res.body)
-		return decoded.reply
+		local reply = decoded.reply
 			or (decoded.choices and decoded.choices[1].message.content)
-			or error("No reply")
-	end)
+		return reply, nil
+	end
+
+	-- Attempt pertama
+	local ok, result, errType = pcall(doRequest)
 	if ok and result then return result end
-	warn("[Unrity] API: "..tostring(result))
+
+	-- Kalau rate limit, tunggu 3 detik terus retry sekali
+	if errType == "ratelimit" then
+		task.wait(3)
+		ok, result, errType = pcall(doRequest)
+		if ok and result then return result end
+		return "I need a moment to think... try asking again in a bit! 💭"
+	end
+
+	-- Server down
+	if errType == "unavailable" then
+		return "My brain is a bit foggy right now... try again soon! ☁️"
+	end
+
+	warn("[Unrity] API error: "..tostring(result))
 	return "Hmm... something went wrong!"
 end
 
@@ -519,7 +544,7 @@ local function stopPremeditated()
 	showReply("...hehe. Just kidding~", nil)
 end
 
-local function triggerPremeditated()
+triggerPremeditated = function()
 	if isPremeditated then stopPremeditated() return end
 	isPremeditated = true
 
@@ -536,6 +561,9 @@ local function triggerPremeditated()
 	premedSound.SoundId = PREMED_AUDIO_ID
 	premedSound.Volume = 0.85
 	premedSound.Looped = true
+	premedSound.RollOffMaxDistance = 1000  -- biar kedengeran dari jauh
+	premedSound.Parent = workspace
+	task.wait(0.3)  -- kasih waktu sound load
 	premedSound:Play()
 
 	-- Spawn Tall R6 Unrity (2x ukuran normal)
